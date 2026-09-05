@@ -6,6 +6,8 @@ public class Participant
 
     public string Name { get; set; } = string.Empty;
 
+    public string Status { get; set; } = "Invited";
+
     public Guid MeetingId { get; set; }
 
     public Meeting Meeting { get; set; } = null!;

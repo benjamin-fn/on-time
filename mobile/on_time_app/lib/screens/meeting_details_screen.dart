@@ -69,51 +69,18 @@ class _MeetingDetailsScreenState
   }
 
   Future<void> _showAddParticipantDialog() async {
-    final controller = TextEditingController();
-
     final name = await showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Lägg till deltagare'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Namn',
-              hintText: 'Exempel: Anna',
-            ),
-            textCapitalization: TextCapitalization.words,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Avbryt'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = controller.text.trim();
-
-                if (value.isEmpty) {
-                  return;
-                }
-
-                Navigator.pop(context, value);
-              },
-              child: const Text('Lägg till'),
-            ),
-          ],
-        );
+        return const _AddParticipantDialog();
       },
     );
 
-    controller.dispose();
+    if (name == null || name.trim().isEmpty) {
+      return;
+    }
 
-    if (name == null) return;
-
-    await _addParticipant(name);
+    await _addParticipant(name.trim());
   }
 
   Future<void> _addParticipant(String name) async {
@@ -151,6 +118,73 @@ class _MeetingDetailsScreenState
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _updateParticipantStatus(
+    Participant participant,
+    String status,
+  ) async {
+    final participantId = participant.id;
+
+    if (participantId == null) {
+      return;
+    }
+
+    try {
+      final updatedParticipant =
+          await _participantService.updateStatus(
+        participantId,
+        status,
+      );
+
+      if (!mounted) return;
+
+      final index = _participants.indexWhere(
+        (item) => item.id == participantId,
+      );
+
+      if (index == -1) {
+        return;
+      }
+
+      setState(() {
+        _participants[index] = updatedParticipant;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Kunde inte ändra deltagarens status.',
+          ),
+        ),
+      );
+    }
+  }
+
+  String _statusText(String status) {
+    switch (status) {
+      case 'Accepted':
+        return 'Accepterat';
+      case 'Declined':
+        return 'Tackat nej';
+      case 'Invited':
+      default:
+        return 'Inbjuden';
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Accepted':
+        return Icons.check_circle_outline;
+      case 'Declined':
+        return Icons.cancel_outlined;
+      case 'Invited':
+      default:
+        return Icons.mail_outline;
     }
   }
 
@@ -213,13 +247,14 @@ class _MeetingDetailsScreenState
           ),
           const SizedBox(height: 32),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Deltagare',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+              const Expanded(
+                child: Text(
+                  'Deltagare',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               FilledButton.icon(
@@ -279,14 +314,141 @@ class _MeetingDetailsScreenState
     return Column(
       children: _participants.map((participant) {
         return Card(
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.person),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.person),
+                  ),
+                  title: Text(
+                    participant.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Row(
+                    children: [
+                      Icon(
+                        _statusIcon(participant.status),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _statusText(participant.status),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: participant.status == 'Accepted'
+                            ? null
+                            : () {
+                                _updateParticipantStatus(
+                                  participant,
+                                  'Accepted',
+                                );
+                              },
+                        icon: const Icon(
+                          Icons.check,
+                        ),
+                        label: const Text(
+                          'Acceptera',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: participant.status == 'Declined'
+                            ? null
+                            : () {
+                                _updateParticipantStatus(
+                                  participant,
+                                  'Declined',
+                                );
+                              },
+                        icon: const Icon(
+                          Icons.close,
+                        ),
+                        label: const Text(
+                          'Tacka nej',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            title: Text(participant.name),
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _AddParticipantDialog extends StatefulWidget {
+  const _AddParticipantDialog();
+
+  @override
+  State<_AddParticipantDialog> createState() =>
+      _AddParticipantDialogState();
+}
+
+class _AddParticipantDialogState
+    extends State<_AddParticipantDialog> {
+  final TextEditingController _controller =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+
+    if (name.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Lägg till deltagare'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) => _submit(),
+        decoration: const InputDecoration(
+          labelText: 'Namn',
+          hintText: 'Exempel: Anna',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Avbryt'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Lägg till'),
+        ),
+      ],
     );
   }
 }

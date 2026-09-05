@@ -23,10 +23,15 @@ class ParticipantService {
     final List<dynamic> data = jsonDecode(response.body);
 
     return data.map((item) {
+      final rawStatus = item['status'] as String?;
+
       return Participant(
         id: item['id'],
         name: item['name'],
         meetingId: item['meetingId'],
+        status: rawStatus == null || rawStatus.isEmpty
+            ? 'Invited'
+            : rawStatus,
       );
     }).toList();
   }
@@ -59,6 +64,39 @@ class ParticipantService {
       id: data['id'],
       name: data['name'],
       meetingId: data['meetingId'],
+      status: data['status'],
+    );
+  }
+
+  Future<Participant> updateStatus(
+    String participantId,
+    String status,
+  ) async {
+    final response = await http.put(
+      Uri.parse(
+        '$_baseUrl/api/participants/$participantId/status',
+      ),
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: jsonEncode({
+        'status': status,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Kunde inte ändra status. Status: ${response.statusCode}',
+      );
+    }
+
+    final data = jsonDecode(response.body);
+
+    return Participant(
+      id: data['id'],
+      name: data['name'],
+      meetingId: data['meetingId'],
+      status: data['status'],
     );
   }
 }

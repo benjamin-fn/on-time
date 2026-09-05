@@ -86,6 +86,7 @@ app.MapPost("/api/meetings/{meetingId:guid}/participants", async (
     {
         Id = Guid.NewGuid(),
         Name = request.Name,
+        Status = "Invited",
         MeetingId = meetingId
     };
 
@@ -96,6 +97,44 @@ app.MapPost("/api/meetings/{meetingId:guid}/participants", async (
         $"/api/meetings/{meetingId}/participants/{participant.Id}",
         participant
     );
+});
+
+// Ändra deltagarens status
+app.MapPut("/api/participants/{participantId:guid}/status", async (
+    Guid participantId,
+    UpdateParticipantStatusRequest request,
+    AppDbContext db) =>
+{
+    var participant = await db.Participants
+        .FirstOrDefaultAsync(p => p.Id == participantId);
+
+    if (participant == null)
+    {
+        return Results.NotFound();
+    }
+
+    var allowedStatuses = new[]
+    {
+        "Invited",
+        "Accepted",
+        "Declined"
+    };
+
+    if (!allowedStatuses.Contains(request.Status))
+    {
+        return Results.BadRequest(
+            new
+            {
+                message = "Ogiltig deltagarstatus."
+            }
+        );
+    }
+
+    participant.Status = request.Status;
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(participant);
 });
 
 app.Run();
@@ -109,4 +148,8 @@ record CreateMeetingRequest(
 
 record CreateParticipantRequest(
     string Name
+);
+
+record UpdateParticipantStatusRequest(
+    string Status
 );
