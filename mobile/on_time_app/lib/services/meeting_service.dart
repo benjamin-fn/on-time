@@ -22,6 +22,7 @@ class MeetingService {
 
     return data.map((item) {
       return Meeting(
+        id: item['id'],
         title: item['title'],
         location: item['location'],
         date: DateTime.parse(item['date']).toLocal(),
@@ -53,6 +54,7 @@ class MeetingService {
     final data = jsonDecode(response.body);
 
     return Meeting(
+      id: data['id'],
       title: data['title'],
       location: data['location'],
       date: DateTime.parse(data['date']).toLocal(),

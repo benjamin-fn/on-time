@@ -11,4 +11,6 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Meeting> Meetings => Set<Meeting>();
+
+    public DbSet<Participant> Participants => Set<Participant>();
 }

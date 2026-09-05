@@ -11,4 +11,6 @@ public class Meeting
     public DateTime Date { get; set; }
 
     public string Stake { get; set; } = string.Empty;
+
+    public List<Participant> Participants { get; set; } = [];
 }

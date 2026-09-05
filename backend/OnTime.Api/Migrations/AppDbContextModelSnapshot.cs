@@ -47,6 +47,42 @@ namespace OnTime.Api.Migrations
 
                     b.ToTable("Meetings");
                 });
+
+            modelBuilder.Entity("OnTime.Api.Models.Participant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MeetingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingId");
+
+                    b.ToTable("Participants");
+                });
+
+            modelBuilder.Entity("OnTime.Api.Models.Participant", b =>
+                {
+                    b.HasOne("OnTime.Api.Models.Meeting", "Meeting")
+                        .WithMany("Participants")
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Meeting");
+                });
+
+            modelBuilder.Entity("OnTime.Api.Models.Meeting", b =>
+                {
+                    b.Navigation("Participants");
+                });
 #pragma warning restore 612, 618
         }
     }

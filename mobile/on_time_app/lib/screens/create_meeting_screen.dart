@@ -53,25 +53,25 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
   }
 
   Future<void> _pickTime() async {
-  final time = await showTimePicker(
-    context: context,
-    initialTime: TimeOfDay.now(),
-    builder: (context, child) {
-      return MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          alwaysUse24HourFormat: true,
-        ),
-        child: child!,
-      );
-    },
-  );
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            alwaysUse24HourFormat: true,
+          ),
+          child: child!,
+        );
+      },
+    );
 
-  if (time != null) {
-    setState(() {
-      _selectedTime = time;
-    });
+    if (time != null) {
+      setState(() {
+        _selectedTime = time;
+      });
+    }
   }
-}
 
   void _saveMeeting() {
     if (!_formKey.currentState!.validate()) {
@@ -135,12 +135,11 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Skriv en titel';
                 }
+
                 return null;
               },
             ),
-
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _locationController,
               decoration: const InputDecoration(
@@ -151,12 +150,11 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Skriv en plats';
                 }
+
                 return null;
               },
             ),
-
             const SizedBox(height: 16),
-
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.calendar_today),
@@ -168,7 +166,6 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               trailing: const Icon(Icons.chevron_right),
               onTap: _pickDate,
             ),
-
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.access_time),
@@ -180,9 +177,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
               trailing: const Icon(Icons.chevron_right),
               onTap: _pickTime,
             ),
-
             const SizedBox(height: 16),
-
             DropdownButtonFormField<String>(
               initialValue: _selectedStake,
               decoration: const InputDecoration(
@@ -200,9 +195,7 @@ class _CreateMeetingScreenState extends State<CreateMeetingScreen> {
                 });
               },
             ),
-
             const SizedBox(height: 32),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton(

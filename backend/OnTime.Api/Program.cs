@@ -14,6 +14,7 @@ var app = builder.Build();
 
 app.MapGet("/", () => "On Time API is running!");
 
+// Hämta alla träffar
 app.MapGet("/api/meetings", async (AppDbContext db) =>
 {
     var meetings = await db.Meetings
@@ -23,6 +24,7 @@ app.MapGet("/api/meetings", async (AppDbContext db) =>
     return Results.Ok(meetings);
 });
 
+// Skapa en ny träff
 app.MapPost("/api/meetings", async (
     CreateMeetingRequest request,
     AppDbContext db) =>
@@ -45,6 +47,57 @@ app.MapPost("/api/meetings", async (
     );
 });
 
+// Hämta deltagare för en träff
+app.MapGet("/api/meetings/{meetingId:guid}/participants", async (
+    Guid meetingId,
+    AppDbContext db) =>
+{
+    var meetingExists = await db.Meetings
+        .AnyAsync(m => m.Id == meetingId);
+
+    if (!meetingExists)
+    {
+        return Results.NotFound();
+    }
+
+    var participants = await db.Participants
+        .Where(p => p.MeetingId == meetingId)
+        .OrderBy(p => p.Name)
+        .ToListAsync();
+
+    return Results.Ok(participants);
+});
+
+// Lägg till deltagare i en träff
+app.MapPost("/api/meetings/{meetingId:guid}/participants", async (
+    Guid meetingId,
+    CreateParticipantRequest request,
+    AppDbContext db) =>
+{
+    var meetingExists = await db.Meetings
+        .AnyAsync(m => m.Id == meetingId);
+
+    if (!meetingExists)
+    {
+        return Results.NotFound();
+    }
+
+    var participant = new Participant
+    {
+        Id = Guid.NewGuid(),
+        Name = request.Name,
+        MeetingId = meetingId
+    };
+
+    db.Participants.Add(participant);
+    await db.SaveChangesAsync();
+
+    return Results.Created(
+        $"/api/meetings/{meetingId}/participants/{participant.Id}",
+        participant
+    );
+});
+
 app.Run();
 
 record CreateMeetingRequest(
@@ -52,4 +105,8 @@ record CreateMeetingRequest(
     string Location,
     DateTime Date,
     string Stake
+);
+
+record CreateParticipantRequest(
+    string Name
 );

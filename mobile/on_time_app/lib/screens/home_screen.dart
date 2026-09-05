@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/meeting.dart';
 import '../services/meeting_service.dart';
 import 'create_meeting_screen.dart';
+import 'meeting_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -119,9 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             const Text(
               'Skapa en träff och se vem som faktiskt kommer först.',
               style: TextStyle(
@@ -129,9 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.black54,
               ),
             ),
-
             const SizedBox(height: 32),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -140,9 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: const Text('Skapa träff'),
               ),
             ),
-
             const SizedBox(height: 24),
-
             const Text(
               'Kommande träffar',
               style: TextStyle(
@@ -150,9 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 16),
-
             Expanded(
               child: _buildMeetingList(),
             ),
@@ -229,64 +222,88 @@ class _HomeScreenState extends State<HomeScreen> {
         final meeting = _meetings[index];
 
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  meeting.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MeetingDetailsScreen(
+                    meeting: meeting,
                   ),
                 ),
-
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 18,
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meeting.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(meeting.location),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 6),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.schedule,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(_formatDate(meeting.date)),
-                  ],
-                ),
-
-                const SizedBox(height: 6),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.emoji_events_outlined,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'På spel: ${meeting.stake}',
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(meeting.location),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(_formatDate(meeting.date)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.emoji_events_outlined,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'På spel: ${meeting.stake}',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Visa träff',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
