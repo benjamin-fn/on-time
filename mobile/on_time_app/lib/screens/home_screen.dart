@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/meeting.dart';
+import '../services/auth_service.dart';
 import '../services/meeting_service.dart';
 import 'create_meeting_screen.dart';
+import 'invitations_screen.dart';
+import 'login_screen.dart';
 import 'meeting_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final MeetingService _meetingService = MeetingService();
+  final AuthService _authService = AuthService();
 
   final List<Meeting> _meetings = [];
 
@@ -45,7 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Kunde inte hämta träffar från servern.';
+        _errorMessage =
+            'Kunde inte hämta träffar från servern.';
       });
     }
   }
@@ -88,11 +93,43 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _openInvitations() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const InvitationsScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    // Uppdatera träffarna när användaren kommer tillbaka.
+    await _loadMeetings();
+  }
+
+  Future<void> _logout() async {
+    await _authService.logout();
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+      (route) => false,
+    );
+  }
+
   String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
+    final day =
+        date.day.toString().padLeft(2, '0');
+    final month =
+        date.month.toString().padLeft(2, '0');
+    final hour =
+        date.hour.toString().padLeft(2, '0');
+    final minute =
+        date.minute.toString().padLeft(2, '0');
 
     return '$day/$month ${date.year} • $hour:$minute';
   }
@@ -107,11 +144,28 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _openInvitations,
+            icon: const Icon(
+              Icons.mail_outline,
+            ),
+            tooltip: 'Mina inbjudningar',
+          ),
+          IconButton(
+            onPressed: _logout,
+            icon: const Icon(
+              Icons.logout,
+            ),
+            tooltip: 'Logga ut',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             const Text(
               'Kom i tid. Ha kul.',
@@ -134,7 +188,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: FilledButton.icon(
                 onPressed: _openCreateMeeting,
                 icon: const Icon(Icons.add),
-                label: const Text('Skapa träff'),
+                label: const Text(
+                  'Skapa träff',
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -154,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
@@ -196,7 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 _loadMeetings();
               },
-              child: const Text('Försök igen'),
+              child: const Text(
+                'Försök igen',
+              ),
             ),
           ],
         ),
@@ -214,100 +272,122 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return ListView.separated(
-      itemCount: _meetings.length,
-      separatorBuilder: (_, _) =>
-          const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final meeting = _meetings[index];
+    return RefreshIndicator(
+      onRefresh: _loadMeetings,
+      child: ListView.separated(
+        itemCount: _meetings.length,
+        separatorBuilder: (_, _) =>
+            const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final meeting = _meetings[index];
 
-        return Card(
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MeetingDetailsScreen(
-                    meeting: meeting,
-                  ),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    meeting.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          return Card(
+            child: InkWell(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        MeetingDetailsScreen(
+                      meeting: meeting,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 18,
+                );
+
+                if (!mounted) return;
+
+                await _loadMeetings();
+              },
+              borderRadius:
+                  BorderRadius.circular(12),
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meeting.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight:
+                            FontWeight.bold,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(meeting.location),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.schedule,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(_formatDate(meeting.date)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.emoji_events_outlined,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'På spel: ${meeting.stake}',
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons
+                              .location_on_outlined,
+                          size: 18,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Visa träff',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            meeting.location,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatDate(
+                            meeting.date,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons
+                              .emoji_events_outlined,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'På spel: ${meeting.stake}',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Visa träff',
+                          style: TextStyle(
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
+
+import 'models/user.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const OnTimeApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final authService = AuthService();
+  final savedUser = await authService.getSavedUser();
+
+  runApp(
+    OnTimeApp(
+      savedUser: savedUser,
+    ),
+  );
 }
 
 class OnTimeApp extends StatelessWidget {
-  const OnTimeApp({super.key});
+  final User? savedUser;
+
+  const OnTimeApp({
+    super.key,
+    required this.savedUser,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +33,9 @@ class OnTimeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'On Time',
       theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+      home: savedUser == null
+          ? const LoginScreen()
+          : const HomeScreen(),
     );
   }
 }

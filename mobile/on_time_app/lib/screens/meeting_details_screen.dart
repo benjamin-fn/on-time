@@ -41,12 +41,15 @@ class _MeetingDetailsScreenState
         _isLoading = false;
         _errorMessage = 'Träffen saknar ID.';
       });
+
       return;
     }
 
     try {
       final participants =
-          await _participantService.getParticipants(meetingId);
+          await _participantService.getParticipants(
+        meetingId,
+      );
 
       if (!mounted) return;
 
@@ -63,27 +66,30 @@ class _MeetingDetailsScreenState
 
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Kunde inte hämta deltagare.';
+        _errorMessage =
+            'Kunde inte hämta deltagare.';
       });
     }
   }
 
-  Future<void> _showAddParticipantDialog() async {
-    final name = await showDialog<String>(
+  Future<void> _showInviteParticipantDialog() async {
+    final email = await showDialog<String>(
       context: context,
       builder: (context) {
-        return const _AddParticipantDialog();
+        return const _InviteParticipantDialog();
       },
     );
 
-    if (name == null || name.trim().isEmpty) {
+    if (email == null || email.trim().isEmpty) {
       return;
     }
 
-    await _addParticipant(name.trim());
+    await _inviteParticipant(email.trim());
   }
 
-  Future<void> _addParticipant(String name) async {
+  Future<void> _inviteParticipant(
+    String email,
+  ) async {
     final meetingId = widget.meeting.id;
 
     if (meetingId == null) {
@@ -92,9 +98,9 @@ class _MeetingDetailsScreenState
 
     try {
       final participant =
-          await _participantService.createParticipant(
+          await _participantService.inviteParticipant(
         meetingId,
-        name,
+        email,
       );
 
       if (!mounted) return;
@@ -105,17 +111,33 @@ class _MeetingDetailsScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$name lades till'),
+          content: Text(
+            '${participant.name} blev inbjuden!',
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
 
+      var message = 'Kunde inte skicka inbjudan.';
+
+      final errorText = error.toString();
+
+      if (errorText.contains(
+        'Ingen användare hittades',
+      )) {
+        message =
+            'Ingen användare hittades med den e-postadressen.';
+      } else if (errorText.contains(
+        'redan inbjuden',
+      )) {
+        message =
+            'Den användaren är redan inbjuden.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Kunde inte lägga till deltagaren.',
-          ),
+        SnackBar(
+          content: Text(message),
         ),
       );
     }
@@ -149,7 +171,8 @@ class _MeetingDetailsScreenState
       }
 
       setState(() {
-        _participants[index] = updatedParticipant;
+        _participants[index] =
+            updatedParticipant;
       });
     } catch (error) {
       if (!mounted) return;
@@ -168,8 +191,10 @@ class _MeetingDetailsScreenState
     switch (status) {
       case 'Accepted':
         return 'Accepterat';
+
       case 'Declined':
         return 'Tackat nej';
+
       case 'Invited':
       default:
         return 'Inbjuden';
@@ -180,8 +205,10 @@ class _MeetingDetailsScreenState
     switch (status) {
       case 'Accepted':
         return Icons.check_circle_outline;
+
       case 'Declined':
         return Icons.cancel_outlined;
+
       case 'Invited':
       default:
         return Icons.mail_outline;
@@ -189,10 +216,17 @@ class _MeetingDetailsScreenState
   }
 
   String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
+    final day =
+        date.day.toString().padLeft(2, '0');
+
+    final month =
+        date.month.toString().padLeft(2, '0');
+
+    final hour =
+        date.hour.toString().padLeft(2, '0');
+
+    final minute =
+        date.minute.toString().padLeft(2, '0');
 
     return '$day/$month ${date.year} • $hour:$minute';
   }
@@ -218,10 +252,14 @@ class _MeetingDetailsScreenState
           const SizedBox(height: 20),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined),
+              const Icon(
+                Icons.location_on_outlined,
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(meeting.location),
+                child: Text(
+                  meeting.location,
+                ),
               ),
             ],
           ),
@@ -230,13 +268,17 @@ class _MeetingDetailsScreenState
             children: [
               const Icon(Icons.schedule),
               const SizedBox(width: 8),
-              Text(_formatDate(meeting.date)),
+              Text(
+                _formatDate(meeting.date),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.emoji_events_outlined),
+              const Icon(
+                Icons.emoji_events_outlined,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -258,9 +300,14 @@ class _MeetingDetailsScreenState
                 ),
               ),
               FilledButton.icon(
-                onPressed: _showAddParticipantDialog,
-                icon: const Icon(Icons.person_add),
-                label: const Text('Lägg till'),
+                onPressed:
+                    _showInviteParticipantDialog,
+                icon: const Icon(
+                  Icons.person_add,
+                ),
+                label: const Text(
+                  'Bjud in',
+                ),
               ),
             ],
           ),
@@ -294,7 +341,9 @@ class _MeetingDetailsScreenState
 
               _loadParticipants();
             },
-            child: const Text('Försök igen'),
+            child: const Text(
+              'Försök igen',
+            ),
           ),
         ],
       );
@@ -305,7 +354,7 @@ class _MeetingDetailsScreenState
         child: Padding(
           padding: EdgeInsets.all(20),
           child: Text(
-            'Inga deltagare ännu.',
+            'Inga deltagare inbjudna ännu.',
           ),
         ),
       );
@@ -321,7 +370,9 @@ class _MeetingDetailsScreenState
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const CircleAvatar(
-                    child: Icon(Icons.person),
+                    child: Icon(
+                      Icons.person,
+                    ),
                   ),
                   title: Text(
                     participant.name,
@@ -332,29 +383,40 @@ class _MeetingDetailsScreenState
                   subtitle: Row(
                     children: [
                       Icon(
-                        _statusIcon(participant.status),
+                        _statusIcon(
+                          participant.status,
+                        ),
                         size: 18,
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _statusText(participant.status),
+                        _statusText(
+                          participant.status,
+                        ),
                       ),
                     ],
                   ),
                 ),
+
+                // Tillfälligt kvar.
+                // Sen ska bara den inbjudna
+                // användaren själv kunna svara.
                 const SizedBox(height: 8),
+
                 Row(
                   children: [
                     Expanded(
                       child: FilledButton.tonalIcon(
-                        onPressed: participant.status == 'Accepted'
-                            ? null
-                            : () {
-                                _updateParticipantStatus(
-                                  participant,
-                                  'Accepted',
-                                );
-                              },
+                        onPressed:
+                            participant.status ==
+                                    'Accepted'
+                                ? null
+                                : () {
+                                    _updateParticipantStatus(
+                                      participant,
+                                      'Accepted',
+                                    );
+                                  },
                         icon: const Icon(
                           Icons.check,
                         ),
@@ -366,14 +428,16 @@ class _MeetingDetailsScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: participant.status == 'Declined'
-                            ? null
-                            : () {
-                                _updateParticipantStatus(
-                                  participant,
-                                  'Declined',
-                                );
-                              },
+                        onPressed:
+                            participant.status ==
+                                    'Declined'
+                                ? null
+                                : () {
+                                    _updateParticipantStatus(
+                                      participant,
+                                      'Declined',
+                                    );
+                                  },
                         icon: const Icon(
                           Icons.close,
                         ),
@@ -393,16 +457,17 @@ class _MeetingDetailsScreenState
   }
 }
 
-class _AddParticipantDialog extends StatefulWidget {
-  const _AddParticipantDialog();
+class _InviteParticipantDialog
+    extends StatefulWidget {
+  const _InviteParticipantDialog();
 
   @override
-  State<_AddParticipantDialog> createState() =>
-      _AddParticipantDialogState();
+  State<_InviteParticipantDialog> createState() =>
+      _InviteParticipantDialogState();
 }
 
-class _AddParticipantDialogState
-    extends State<_AddParticipantDialog> {
+class _InviteParticipantDialogState
+    extends State<_InviteParticipantDialog> {
   final TextEditingController _controller =
       TextEditingController();
 
@@ -413,28 +478,35 @@ class _AddParticipantDialogState
   }
 
   void _submit() {
-    final name = _controller.text.trim();
+    final email = _controller.text.trim();
 
-    if (name.isEmpty) {
+    if (email.isEmpty) {
       return;
     }
 
-    Navigator.of(context).pop(name);
+    Navigator.of(context).pop(email);
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Lägg till deltagare'),
+      title: const Text(
+        'Bjud in deltagare',
+      ),
       content: TextField(
         controller: _controller,
         autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: TextInputAction.done,
+        keyboardType:
+            TextInputType.emailAddress,
+        textInputAction:
+            TextInputAction.done,
         onSubmitted: (_) => _submit(),
         decoration: const InputDecoration(
-          labelText: 'Namn',
-          hintText: 'Exempel: Anna',
+          labelText: 'E-post',
+          hintText: 'Exempel: anna@email.se',
+          prefixIcon: Icon(
+            Icons.email_outlined,
+          ),
         ),
       ),
       actions: [
@@ -442,11 +514,15 @@ class _AddParticipantDialogState
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: const Text('Avbryt'),
+          child: const Text(
+            'Avbryt',
+          ),
         ),
         FilledButton(
           onPressed: _submit,
-          child: const Text('Lägg till'),
+          child: const Text(
+            'Bjud in',
+          ),
         ),
       ],
     );

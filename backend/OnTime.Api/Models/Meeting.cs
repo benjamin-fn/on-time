@@ -12,5 +12,9 @@ public class Meeting
 
     public string Stake { get; set; } = string.Empty;
 
+    public Guid? CreatedByUserId { get; set; }
+
+    public User? CreatedByUser { get; set; }
+
     public List<Participant> Participants { get; set; } = [];
 }
