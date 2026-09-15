@@ -73,6 +73,10 @@ class _MeetingDetailsScreenState
   }
 
   Future<void> _showInviteParticipantDialog() async {
+    if (!widget.meeting.isCreator) {
+      return;
+    }
+
     final email = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -90,6 +94,10 @@ class _MeetingDetailsScreenState
   Future<void> _inviteParticipant(
     String email,
   ) async {
+    if (!widget.meeting.isCreator) {
+      return;
+    }
+
     final meetingId = widget.meeting.id;
 
     if (meetingId == null) {
@@ -119,7 +127,8 @@ class _MeetingDetailsScreenState
     } catch (error) {
       if (!mounted) return;
 
-      var message = 'Kunde inte skicka inbjudan.';
+      var message =
+          'Kunde inte skicka inbjudan.';
 
       final errorText = error.toString();
 
@@ -138,50 +147,6 @@ class _MeetingDetailsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-        ),
-      );
-    }
-  }
-
-  Future<void> _updateParticipantStatus(
-    Participant participant,
-    String status,
-  ) async {
-    final participantId = participant.id;
-
-    if (participantId == null) {
-      return;
-    }
-
-    try {
-      final updatedParticipant =
-          await _participantService.updateStatus(
-        participantId,
-        status,
-      );
-
-      if (!mounted) return;
-
-      final index = _participants.indexWhere(
-        (item) => item.id == participantId,
-      );
-
-      if (index == -1) {
-        return;
-      }
-
-      setState(() {
-        _participants[index] =
-            updatedParticipant;
-      });
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Kunde inte ändra deltagarens status.',
-          ),
         ),
       );
     }
@@ -228,7 +193,8 @@ class _MeetingDetailsScreenState
     final minute =
         date.minute.toString().padLeft(2, '0');
 
-    return '$day/$month ${date.year} • $hour:$minute';
+    return '$day/$month ${date.year} • '
+        '$hour:$minute';
   }
 
   @override
@@ -239,81 +205,110 @@ class _MeetingDetailsScreenState
       appBar: AppBar(
         title: const Text('Träff'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            meeting.title,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+      body: RefreshIndicator(
+        onRefresh: _loadParticipants,
+        child: ListView(
+          physics:
+              const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              meeting.title,
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
+
+            const SizedBox(height: 8),
+
+            Text(
+              meeting.isCreator
+                  ? 'Skapad av dig'
+                  : 'Du deltar i träffen',
+              style: const TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  meeting.location,
+            ),
+
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.schedule),
-              const SizedBox(width: 8),
-              Text(
-                _formatDate(meeting.date),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.emoji_events_outlined,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'På spel: ${meeting.stake}',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Deltagare',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    meeting.location,
                   ),
                 ),
-              ),
-              FilledButton.icon(
-                onPressed:
-                    _showInviteParticipantDialog,
-                icon: const Icon(
-                  Icons.person_add,
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                const Icon(Icons.schedule),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(meeting.date),
                 ),
-                label: const Text(
-                  'Bjud in',
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                const Icon(
+                  Icons.emoji_events_outlined,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildParticipants(),
-        ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'På spel: ${meeting.stake}',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Deltagare',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                if (meeting.isCreator)
+                  FilledButton.icon(
+                    onPressed:
+                        _showInviteParticipantDialog,
+                    icon: const Icon(
+                      Icons.person_add,
+                    ),
+                    label: const Text(
+                      'Bjud in',
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            _buildParticipants(),
+          ],
+        ),
       ),
     );
   }
@@ -332,7 +327,9 @@ class _MeetingDetailsScreenState
       return Column(
         children: [
           Text(_errorMessage!),
+
           const SizedBox(height: 12),
+
           FilledButton(
             onPressed: () {
               setState(() {
@@ -361,98 +358,41 @@ class _MeetingDetailsScreenState
     }
 
     return Column(
-      children: _participants.map((participant) {
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    child: Icon(
-                      Icons.person,
-                    ),
-                  ),
-                  title: Text(
-                    participant.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Row(
-                    children: [
-                      Icon(
-                        _statusIcon(
-                          participant.status,
-                        ),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _statusText(
-                          participant.status,
-                        ),
-                      ),
-                    ],
-                  ),
+      children: _participants.map(
+        (participant) {
+          return Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(
+                  Icons.person,
                 ),
-
-                // Tillfälligt kvar.
-                // Sen ska bara den inbjudna
-                // användaren själv kunna svara.
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed:
-                            participant.status ==
-                                    'Accepted'
-                                ? null
-                                : () {
-                                    _updateParticipantStatus(
-                                      participant,
-                                      'Accepted',
-                                    );
-                                  },
-                        icon: const Icon(
-                          Icons.check,
-                        ),
-                        label: const Text(
-                          'Acceptera',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            participant.status ==
-                                    'Declined'
-                                ? null
-                                : () {
-                                    _updateParticipantStatus(
-                                      participant,
-                                      'Declined',
-                                    );
-                                  },
-                        icon: const Icon(
-                          Icons.close,
-                        ),
-                        label: const Text(
-                          'Tacka nej',
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+              title: Text(
+                participant.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
+              ),
+              subtitle: Row(
+                children: [
+                  Icon(
+                    _statusIcon(
+                      participant.status,
+                    ),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _statusText(
+                      participant.status,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        },
+      ).toList(),
     );
   }
 }

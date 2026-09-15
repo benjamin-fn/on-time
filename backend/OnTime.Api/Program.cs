@@ -1,6 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +18,14 @@ var builder = WebApplication.CreateBuilder(args);
 // =========================
 
 var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Configuration.GetConnectionString(
+        "DefaultConnection"
+    );
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(
+    options =>
+        options.UseNpgsql(connectionString)
+);
 
 builder.Services.AddScoped<
     IPasswordHasher<User>,
@@ -29,7 +36,8 @@ builder.Services.AddScoped<
 // JWT
 // =========================
 
-var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtKey =
+    builder.Configuration["Jwt:Key"];
 
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
@@ -39,38 +47,72 @@ if (string.IsNullOrWhiteSpace(jwtKey))
 }
 
 var jwtIssuer =
-    builder.Configuration["Jwt:Issuer"] ?? "OnTime.Api";
+    builder.Configuration["Jwt:Issuer"]
+    ?? "OnTime.Api";
 
 var jwtAudience =
-    builder.Configuration["Jwt:Audience"] ?? "OnTime.App";
+    builder.Configuration["Jwt:Audience"]
+    ?? "OnTime.App";
 
 builder.Services
     .AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme
     )
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters =
-            new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
+    .AddJwtBearer(
+        options =>
+        {
+            options.TokenValidationParameters =
+                new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
 
-                ValidIssuer = jwtIssuer,
-                ValidAudience = jwtAudience,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
 
-                IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtKey)
-                    ),
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(
+                                jwtKey
+                            )
+                        ),
 
-                ClockSkew = TimeSpan.Zero
-            };
-    });
+                    ClockSkew = TimeSpan.Zero
+                };
+        }
+    );
 
 builder.Services.AddAuthorization();
+
+// =========================
+// FIREBASE
+// =========================
+
+var firebaseServiceAccountPath =
+    builder.Configuration[
+        "Firebase:ServiceAccountPath"
+    ];
+
+if (string.IsNullOrWhiteSpace(
+    firebaseServiceAccountPath
+))
+{
+    throw new InvalidOperationException(
+        "Firebase Service Account-sökväg saknas."
+    );
+}
+
+FirebaseApp.Create(
+    new AppOptions
+    {
+        Credential =
+            GoogleCredential.FromFile(
+                firebaseServiceAccountPath
+            )
+    }
+);
 
 // =========================
 // APP
@@ -81,17 +123,15 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// =========================
-// TEST
-// =========================
-
-app.MapGet("/", () => "On Time API is running!");
+app.MapGet(
+    "/",
+    () => "On Time API is running!"
+);
 
 // =========================
 // AUTH
 // =========================
 
-// Registrera användare
 app.MapPost(
     "/api/auth/register",
     async (
@@ -99,17 +139,21 @@ app.MapPost(
         AppDbContext db,
         IPasswordHasher<User> passwordHasher) =>
     {
-        var name = request.Name.Trim();
+        var name =
+            request.Name.Trim();
 
         var email =
-            request.Email.Trim().ToLowerInvariant();
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
         if (string.IsNullOrWhiteSpace(name))
         {
             return Results.BadRequest(
                 new
                 {
-                    message = "Namn måste anges."
+                    message =
+                        "Namn måste anges."
                 }
             );
         }
@@ -119,13 +163,19 @@ app.MapPost(
             return Results.BadRequest(
                 new
                 {
-                    message = "E-post måste anges."
+                    message =
+                        "E-post måste anges."
                 }
             );
         }
 
-        if (string.IsNullOrWhiteSpace(request.Password) ||
-            request.Password.Length < 6)
+        if (
+            string.IsNullOrWhiteSpace(
+                request.Password
+            )
+            ||
+            request.Password.Length < 6
+        )
         {
             return Results.BadRequest(
                 new
@@ -136,9 +186,10 @@ app.MapPost(
             );
         }
 
-        var emailExists = await db.Users
-            .AnyAsync(
-                user => user.Email == email
+        var emailExists =
+            await db.Users.AnyAsync(
+                user =>
+                    user.Email == email
             );
 
         if (emailExists)
@@ -152,12 +203,13 @@ app.MapPost(
             );
         }
 
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Email = email
-        };
+        var user =
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                Email = email
+            };
 
         user.PasswordHash =
             passwordHasher.HashPassword(
@@ -169,12 +221,13 @@ app.MapPost(
 
         await db.SaveChangesAsync();
 
-        var token = CreateJwtToken(
-            user,
-            jwtKey,
-            jwtIssuer,
-            jwtAudience
-        );
+        var token =
+            CreateJwtToken(
+                user,
+                jwtKey,
+                jwtIssuer,
+                jwtAudience
+            );
 
         return Results.Created(
             $"/api/users/{user.Id}",
@@ -188,7 +241,6 @@ app.MapPost(
     }
 );
 
-// Logga in
 app.MapPost(
     "/api/auth/login",
     async (
@@ -197,11 +249,14 @@ app.MapPost(
         IPasswordHasher<User> passwordHasher) =>
     {
         var email =
-            request.Email.Trim().ToLowerInvariant();
+            request.Email
+                .Trim()
+                .ToLowerInvariant();
 
-        var user = await db.Users
-            .FirstOrDefaultAsync(
-                user => user.Email == email
+        var user =
+            await db.Users.FirstOrDefaultAsync(
+                user =>
+                    user.Email == email
             );
 
         if (user == null)
@@ -210,24 +265,28 @@ app.MapPost(
         }
 
         var result =
-            passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.Password
-            );
+            passwordHasher
+                .VerifyHashedPassword(
+                    user,
+                    user.PasswordHash,
+                    request.Password
+                );
 
-        if (result ==
-            PasswordVerificationResult.Failed)
+        if (
+            result ==
+            PasswordVerificationResult.Failed
+        )
         {
             return Results.Unauthorized();
         }
 
-        var token = CreateJwtToken(
-            user,
-            jwtKey,
-            jwtIssuer,
-            jwtAudience
-        );
+        var token =
+            CreateJwtToken(
+                user,
+                jwtKey,
+                jwtIssuer,
+                jwtAudience
+            );
 
         return Results.Ok(
             new AuthResponse(
@@ -241,56 +300,134 @@ app.MapPost(
 );
 
 // =========================
-// MEETINGS
+// DEVICE TOKEN
 // =========================
 
-// Hämta:
-// 1. träffar användaren själv har skapat
-// 2. träffar användaren har accepterat
-app.MapGet(
-    "/api/meetings",
+app.MapPut(
+    "/api/users/device-token",
     async (
+        DeviceTokenRequest request,
         ClaimsPrincipal principal,
         AppDbContext db) =>
     {
-        var userId = GetUserId(principal);
+        var userId =
+            GetUserId(principal);
 
         if (userId == null)
         {
             return Results.Unauthorized();
         }
 
-        var meetings = await db.Meetings
-            .Where(
-                meeting =>
-                    meeting.CreatedByUserId == userId
-                    ||
-                    meeting.Participants.Any(
-                        participant =>
-                            participant.UserId == userId &&
-                            participant.Status == "Accepted"
-                    )
-            )
-            .OrderBy(
-                meeting => meeting.Date
-            )
-            .Select(
-                meeting => new MeetingResponse(
-                    meeting.Id,
-                    meeting.Title,
-                    meeting.Location,
-                    meeting.Date,
-                    meeting.Stake
+        var fcmToken =
+            request.FcmToken.Trim();
+
+        if (string.IsNullOrWhiteSpace(
+            fcmToken
+        ))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    message =
+                        "FCM-token måste anges."
+                }
+            );
+        }
+
+        var user =
+            await db.Users
+                .FirstOrDefaultAsync(
+                    user =>
+                        user.Id ==
+                        userId.Value
+                );
+
+        if (user == null)
+        {
+            return Results.NotFound();
+        }
+
+        user.FcmToken = fcmToken;
+
+        await db.SaveChangesAsync();
+
+        return Results.Ok(
+            new
+            {
+                message =
+                    "Enhet registrerad för pushnotiser."
+            }
+        );
+    }
+)
+.RequireAuthorization();
+
+// =========================
+// MEETINGS
+// =========================
+
+// Visar både:
+// - träffar användaren själv har skapat
+// - träffar användaren har accepterat
+//
+// IsCreator berättar för Flutter om användaren
+// är skaparen av just den träffen.
+
+app.MapGet(
+    "/api/meetings",
+    async (
+        ClaimsPrincipal principal,
+        AppDbContext db) =>
+    {
+        var userId =
+            GetUserId(principal);
+
+        if (userId == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var meetings =
+            await db.Meetings
+                .Where(
+                    meeting =>
+                        meeting.CreatedByUserId ==
+                            userId
+                        ||
+                        meeting.Participants.Any(
+                            participant =>
+                                participant.UserId ==
+                                    userId
+                                &&
+                                participant.Status ==
+                                    "Accepted"
+                        )
                 )
-            )
-            .ToListAsync();
+                .OrderBy(
+                    meeting =>
+                        meeting.Date
+                )
+                .Select(
+                    meeting =>
+                        new MeetingResponse(
+                            meeting.Id,
+                            meeting.Title,
+                            meeting.Location,
+                            meeting.Date,
+                            meeting.Stake,
+                            meeting.CreatedByUserId ==
+                                userId
+                        )
+                )
+                .ToListAsync();
 
         return Results.Ok(meetings);
     }
 )
 .RequireAuthorization();
 
-// Skapa ny träff
+// Skapa träff
+
 app.MapPost(
     "/api/meetings",
     async (
@@ -298,52 +435,68 @@ app.MapPost(
         ClaimsPrincipal principal,
         AppDbContext db) =>
     {
-        var userId = GetUserId(principal);
+        var userId =
+            GetUserId(principal);
 
         if (userId == null)
         {
             return Results.Unauthorized();
         }
 
-        if (string.IsNullOrWhiteSpace(request.Title))
+        if (string.IsNullOrWhiteSpace(
+            request.Title
+        ))
         {
             return Results.BadRequest(
                 new
                 {
-                    message = "Titel måste anges."
+                    message =
+                        "Titel måste anges."
                 }
             );
         }
 
-        if (string.IsNullOrWhiteSpace(request.Location))
+        if (string.IsNullOrWhiteSpace(
+            request.Location
+        ))
         {
             return Results.BadRequest(
                 new
                 {
-                    message = "Plats måste anges."
+                    message =
+                        "Plats måste anges."
                 }
             );
         }
 
-        if (string.IsNullOrWhiteSpace(request.Stake))
+        if (string.IsNullOrWhiteSpace(
+            request.Stake
+        ))
         {
             return Results.BadRequest(
                 new
                 {
-                    message = "Insats måste anges."
+                    message =
+                        "Insats måste anges."
                 }
             );
         }
 
-        var meeting = new Meeting
-        {
-            Id = Guid.NewGuid(),
-            Title = request.Title.Trim(),
-            Location = request.Location.Trim(),
-            Date = request.Date,
-            Stake = request.Stake.Trim(),
-            CreatedByUserId = userId.Value
-        };
+        var meeting =
+            new Meeting
+            {
+                Id = Guid.NewGuid(),
+                Title =
+                    request.Title.Trim(),
+                Location =
+                    request.Location.Trim(),
+                Date =
+                    request.Date,
+                Stake =
+                    request.Stake.Trim(),
+                CreatedByUserId =
+                    userId.Value
+            };
 
         db.Meetings.Add(meeting);
 
@@ -356,7 +509,8 @@ app.MapPost(
                 meeting.Title,
                 meeting.Location,
                 meeting.Date,
-                meeting.Stake
+                meeting.Stake,
+                true
             )
         );
     }
@@ -367,7 +521,9 @@ app.MapPost(
 // PARTICIPANTS
 // =========================
 
-// Skaparen hämtar deltagarna för sin träff
+// Skaparen eller en accepterad deltagare
+// får se deltagarlistan.
+
 app.MapGet(
     "/api/meetings/{meetingId:guid}/participants",
     async (
@@ -375,43 +531,61 @@ app.MapGet(
         ClaimsPrincipal principal,
         AppDbContext db) =>
     {
-        var userId = GetUserId(principal);
+        var userId =
+            GetUserId(principal);
 
         if (userId == null)
         {
             return Results.Unauthorized();
         }
 
-        var meeting = await db.Meetings
-            .FirstOrDefaultAsync(
+        var canViewMeeting =
+            await db.Meetings.AnyAsync(
                 meeting =>
-                    meeting.Id == meetingId &&
-                    meeting.CreatedByUserId == userId
+                    meeting.Id ==
+                        meetingId
+                    &&
+                    (
+                        meeting.CreatedByUserId ==
+                            userId
+                        ||
+                        meeting.Participants.Any(
+                            participant =>
+                                participant.UserId ==
+                                    userId
+                                &&
+                                participant.Status ==
+                                    "Accepted"
+                        )
+                    )
             );
 
-        if (meeting == null)
+        if (!canViewMeeting)
         {
             return Results.NotFound();
         }
 
-        var participants = await db.Participants
-            .Where(
-                participant =>
-                    participant.MeetingId == meetingId
-            )
-            .OrderBy(
-                participant => participant.Name
-            )
-            .Select(
-                participant =>
-                    new ParticipantResponse(
-                        participant.Id,
-                        participant.Name,
-                        participant.Status,
-                        participant.MeetingId
-                    )
-            )
-            .ToListAsync();
+        var participants =
+            await db.Participants
+                .Where(
+                    participant =>
+                        participant.MeetingId ==
+                            meetingId
+                )
+                .OrderBy(
+                    participant =>
+                        participant.Name
+                )
+                .Select(
+                    participant =>
+                        new ParticipantResponse(
+                            participant.Id,
+                            participant.Name,
+                            participant.Status,
+                            participant.MeetingId
+                        )
+                )
+                .ToListAsync();
 
         return Results.Ok(participants);
     }
@@ -422,9 +596,8 @@ app.MapGet(
 // SEND INVITATION
 // =========================
 
-// Skaparen bjuder in en registrerad användare via e-post.
-// E-posten används för att hitta kontot.
-// Personens riktiga namn visas sedan i deltagarlistan.
+// Endast skaparen får bjuda in.
+
 app.MapPost(
     "/api/meetings/{meetingId:guid}/participants",
     async (
@@ -441,13 +614,16 @@ app.MapPost(
             return Results.Unauthorized();
         }
 
-        var meeting = await db.Meetings
-            .FirstOrDefaultAsync(
-                meeting =>
-                    meeting.Id == meetingId &&
-                    meeting.CreatedByUserId ==
-                    currentUserId
-            );
+        var meeting =
+            await db.Meetings
+                .FirstOrDefaultAsync(
+                    meeting =>
+                        meeting.Id ==
+                            meetingId
+                        &&
+                        meeting.CreatedByUserId ==
+                            currentUserId
+                );
 
         if (meeting == null)
         {
@@ -459,7 +635,9 @@ app.MapPost(
                 .Trim()
                 .ToLowerInvariant();
 
-        if (string.IsNullOrWhiteSpace(email))
+        if (string.IsNullOrWhiteSpace(
+            email
+        ))
         {
             return Results.BadRequest(
                 new
@@ -470,11 +648,13 @@ app.MapPost(
             );
         }
 
-        var invitedUser = await db.Users
-            .FirstOrDefaultAsync(
-                user =>
-                    user.Email == email
-            );
+        var invitedUser =
+            await db.Users
+                .FirstOrDefaultAsync(
+                    user =>
+                        user.Email ==
+                            email
+                );
 
         if (invitedUser == null)
         {
@@ -487,8 +667,10 @@ app.MapPost(
             );
         }
 
-        if (invitedUser.Id ==
-            currentUserId.Value)
+        if (
+            invitedUser.Id ==
+            currentUserId.Value
+        )
         {
             return Results.BadRequest(
                 new
@@ -503,9 +685,10 @@ app.MapPost(
             await db.Participants.AnyAsync(
                 participant =>
                     participant.MeetingId ==
-                    meetingId &&
+                        meetingId
+                    &&
                     participant.UserId ==
-                    invitedUser.Id
+                        invitedUser.Id
             );
 
         if (alreadyInvited)
@@ -523,19 +706,79 @@ app.MapPost(
             new Participant
             {
                 Id = Guid.NewGuid(),
-
-                Name = invitedUser.Name,
-
-                Status = "Invited",
-
-                MeetingId = meetingId,
-
-                UserId = invitedUser.Id
+                Name =
+                    invitedUser.Name,
+                Status =
+                    "Invited",
+                MeetingId =
+                    meetingId,
+                UserId =
+                    invitedUser.Id
             };
 
-        db.Participants.Add(participant);
+        db.Participants.Add(
+            participant
+        );
 
         await db.SaveChangesAsync();
+
+    // =========================
+    // PUSH NOTIFICATION
+    // =========================
+
+    Console.WriteLine(
+        $"PUSH DEBUG: invitedUser={invitedUser.Email}, " +
+        $"harToken={!string.IsNullOrWhiteSpace(invitedUser.FcmToken)}"
+    );
+
+    if (!string.IsNullOrWhiteSpace(
+        invitedUser.FcmToken
+    ))
+    {
+            var creator =
+                await db.Users
+                    .FirstOrDefaultAsync(
+                        user =>
+                            user.Id ==
+                            currentUserId.Value
+                    );
+
+            var creatorName =
+                creator?.Name ??
+                "Någon";
+
+            var message =
+                new Message
+                {
+                    Token =
+                        invitedUser.FcmToken,
+
+                    Notification =
+                        new Notification
+                        {
+                            Title =
+                                "Ny inbjudan 🔔",
+
+                            Body =
+                                $"{creatorName} har bjudit in dig till {meeting.Title}"
+                        },
+
+                    Android =
+                        new AndroidConfig
+                        {
+                            Notification =
+                                new AndroidNotification
+                                {
+                                    ChannelId =
+                                        "on_time_high_importance"
+                                }
+                        }
+                };
+
+            await FirebaseMessaging
+                .DefaultInstance
+                .SendAsync(message);
+        }
 
         return Results.Created(
             $"/api/meetings/{meetingId}/participants/{participant.Id}",
@@ -554,15 +797,14 @@ app.MapPost(
 // MY INVITATIONS
 // =========================
 
-// Hämta inbjudningar som den
-// inloggade användaren har fått.
 app.MapGet(
     "/api/invitations",
     async (
         ClaimsPrincipal principal,
         AppDbContext db) =>
     {
-        var userId = GetUserId(principal);
+        var userId =
+            GetUserId(principal);
 
         if (userId == null)
         {
@@ -574,15 +816,7 @@ app.MapGet(
                 .Where(
                     participant =>
                         participant.UserId ==
-                        userId
-                )
-                .Include(
-                    participant =>
-                        participant.Meeting
-                )
-                .ThenInclude(
-                    meeting =>
-                        meeting.CreatedByUser
+                            userId
                 )
                 .OrderBy(
                     participant =>
@@ -619,8 +853,9 @@ app.MapGet(
 // ACCEPT / DECLINE
 // =========================
 
-// Endast den användare som är kopplad
-// till inbjudan får svara på den.
+// Bara den inbjudna användaren själv
+// får svara på inbjudan.
+
 app.MapPut(
     "/api/participants/{participantId:guid}/status",
     async (
@@ -629,7 +864,8 @@ app.MapPut(
         ClaimsPrincipal principal,
         AppDbContext db) =>
     {
-        var userId = GetUserId(principal);
+        var userId =
+            GetUserId(principal);
 
         if (userId == null)
         {
@@ -641,7 +877,8 @@ app.MapPut(
                 .FirstOrDefaultAsync(
                     participant =>
                         participant.Id ==
-                            participantId &&
+                            participantId
+                        &&
                         participant.UserId ==
                             userId
                 );
@@ -756,7 +993,9 @@ static string CreateJwtToken(
 
     var key =
         new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtKey)
+            Encoding.UTF8.GetBytes(
+                jwtKey
+            )
         );
 
     var credentials =
@@ -814,7 +1053,8 @@ record MeetingResponse(
     string Title,
     string Location,
     DateTime Date,
-    string Stake
+    string Stake,
+    bool IsCreator
 );
 
 record InviteParticipantRequest(
@@ -841,4 +1081,8 @@ record InvitationResponse(
     DateTime Date,
     string Stake,
     string CreatedByName
+);
+
+record DeviceTokenRequest(
+    string FcmToken
 );

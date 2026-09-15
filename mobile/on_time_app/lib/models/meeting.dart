@@ -4,6 +4,7 @@ class Meeting {
   final String location;
   final DateTime date;
   final String stake;
+  final bool isCreator;
 
   Meeting({
     this.id,
@@ -11,5 +12,6 @@ class Meeting {
     required this.location,
     required this.date,
     required this.stake,
+    this.isCreator = true,
   });
 }
