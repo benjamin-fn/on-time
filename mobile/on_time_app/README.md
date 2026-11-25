@@ -1,17 +1,23 @@
-# on_time_app
+# On Time
 
-A new Flutter project.
+On Time är en mobilapp som jag arbetade med under min LIA. Idén bakom appen är att göra det enklare att planera möten, bjuda in deltagare och hålla koll på deras status.
 
-## Getting Started
+## Funktionalitet
 
-This project is a starting point for a Flutter application.
+- Inloggning och registrering
+- Skapa och hantera möten
+- Bjuda in deltagare
+- Hantera mötesinbjudningar
+- Visa mötesinformation
 
-A few resources to get you started if this is your first Flutter project:
+## Teknik
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter och Dart
+- C# och .NET
+- ASP.NET Core Web API
+- Entity Framework Core
+- Firebase
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Projektstatus
+
+Projektet påbörjades under min LIA men blev inte helt färdigställt. Vissa funktioner behöver fortfarande vidareutvecklas.
